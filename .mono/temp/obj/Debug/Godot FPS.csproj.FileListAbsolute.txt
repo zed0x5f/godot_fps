@@ -1,0 +1,6 @@
+F:\_programing\godot\fps_tutorial\.mono\temp\bin\Debug\Godot FPS.dll
+F:\_programing\godot\fps_tutorial\.mono\temp\bin\Debug\Godot FPS.pdb
+F:\_programing\godot\fps_tutorial\.mono\temp\obj\Debug\Godot FPS.csprojAssemblyReference.cache
+F:\_programing\godot\fps_tutorial\.mono\temp\obj\Debug\Godot FPS.csproj.CoreCompileInputs.cache
+F:\_programing\godot\fps_tutorial\.mono\temp\obj\Debug\Godot FPS.dll
+F:\_programing\godot\fps_tutorial\.mono\temp\obj\Debug\Godot FPS.pdb

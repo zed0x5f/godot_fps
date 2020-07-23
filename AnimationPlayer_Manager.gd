@@ -49,6 +49,7 @@ class State:
 			STATE_CHILD:
 				return self.possibleAnimations[0]
 
+#
 var state:State = State.new(
 "Idle_unarmed",STATE_IDLE,1,
 [
@@ -68,7 +69,7 @@ var state:State = State.new(
 		[
 			State.new("Pistol_unequip",STATE_ROOT,1,
 			[]),
-			State.new("Pistol_fire",STATE_PARENT,180,
+			State.new("Pistol_fire",STATE_PARENT,10,
 			[]),
 			State.new("Pistol_reload",STATE_PARENT,1,
 			[]),

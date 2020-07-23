@@ -1,6 +1,9 @@
 extends Spatial
 
 const DAMAGE = 4
+var ammo_in_weapon = 50
+var spare_ammo = 100
+const AMMO_IN_MAG = 50
 
 const IDLE_ANIM_NAME = "Rifle_idle"
 const FIRE_ANIM_NAME = "Rifle_fire"
@@ -23,6 +26,7 @@ func fire_weapon():
 			pass
 		elif body.has_method("bullet_hit"):
 			body.bullet_hit(DAMAGE, ray.global_transform)
+	ammo_in_weapon -= 1
 
 func equip_weapon():
 	if player_node.animation_manager.current_state == IDLE_ANIM_NAME:

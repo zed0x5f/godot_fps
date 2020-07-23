@@ -4,6 +4,7 @@ const GRAVITY = -24.8
 var vel = Vector3()
 const MAX_SPEED = 20
 const JUMP_SPEED = 18
+#allow multi jumping
 const MAX_JUMPS = 3
 var JUMP_COUNT = 0
 
@@ -163,8 +164,9 @@ func process_input(delta):
 		if changing_weapon == false:
 			var current_weapon = weapons[current_weapon_name]
 			if current_weapon != null:
-				if animation_manager.current_state == current_weapon.IDLE_ANIM_NAME:
-					animation_manager.set_animation(current_weapon.FIRE_ANIM_NAME)
+				if current_weapon.ammo_in_weapon > 0:
+					if animation_manager.current_state == current_weapon.IDLE_ANIM_NAME:
+						animation_manager.set_animation(current_weapon.FIRE_ANIM_NAME)
 	# ----------------------------------
 
 func process_movement(delta):

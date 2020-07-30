@@ -71,7 +71,7 @@ var state:State = State.new(
 			[]),
 			State.new("Pistol_fire",STATE_PARENT,10,
 			[]),
-			State.new("Pistol_reload",STATE_PARENT,1,
+			State.new("Pistol_reload",STATE_PARENT,5,
 			[]),
 		])
 	]),
@@ -83,7 +83,7 @@ var state:State = State.new(
 			[]),
 			State.new("Rifle_fire",STATE_PARENT,4,
 			[]),
-			State.new("Rifle_reload",STATE_PARENT,1.45,
+			State.new("Rifle_reload",STATE_PARENT,5,
 			[]),
 		])
 	]),

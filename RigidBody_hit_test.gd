@@ -18,3 +18,5 @@ func bullet_hit(damage, bullet_global_trans):
 	#clone.scale = Vector3(4, 4, 4)
 	#clone.rotate(Vector3.RIGHT,PI)
 	#clone.BULLET_DAMAGE = 15
+
+

@@ -1,44 +1,24 @@
 extends KinematicBody
 
-const GRAVITY = -24.8
-var vel = Vector3()
-const MAX_SPEED = 20
-const JUMP_SPEED = 18
-#allow multi jumping
-const MAX_JUMPS = 3
-var JUMP_COUNT = 0
+const MAX_HEALTH = 150
+var health = 100
 
-const ACCEL= 4.5
-
-const MAX_SPRINT_SPEED = 30
-const SPRINT_ACCEL = 18
-var is_sprinting = false
 
 var flashlight
 
-var dir = Vector3()
-
-const DEACCEL= 16
-const MAX_SLOPE_ANGLE = 40
-
 var camera
 var rotation_helper
-
-var MOUSE_SENSITIVITY = 0.05
-
-var animation_manager
 
 var current_weapon_name = "UNARMED"
 var weapons = {"UNARMED":null, "KNIFE":null, "PISTOL":null, "RIFLE":null}
 const WEAPON_NUMBER_TO_NAME = {0:"UNARMED", 1:"KNIFE", 2:"PISTOL", 3:"RIFLE"}
 const WEAPON_NAME_TO_NUMBER = {"UNARMED":0, "KNIFE":1, "PISTOL":2, "RIFLE":3}
 var changing_weapon = false
+var reloading_weapon = false
 var changing_weapon_name = "UNARMED"
 
-var health = 100
-
 var UI_status_label
-
+var animation_manager
 func _ready():
 	camera = $Rotation_Helper/Camera
 	rotation_helper = $Rotation_Helper
@@ -69,11 +49,48 @@ func _ready():
 
 func _physics_process(delta):
 	process_input(delta)
+	process_view_input(delta, playstation)
 	process_movement(delta)
-	process_changing_weapons(delta)
+	if grabbed_object == null:
+		process_changing_weapons(delta)
+		process_reloading(delta)
+	process_UI(delta)
 
+
+var mouse_scroll_value = 0
+const MOUSE_SENSITIVITY_SCROLL_WHEEL = 0.08
+func _input(event):
+	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		rotation_helper.rotate_x(deg2rad(event.relative.y * MOUSE_SENSITIVITY))
+		self.rotate_y(deg2rad(event.relative.x * MOUSE_SENSITIVITY * -1))
+
+		var camera_rot = rotation_helper.rotation_degrees
+		camera_rot.x = clamp(camera_rot.x, -70, 70)
+		rotation_helper.rotation_degrees = camera_rot
+	if event is InputEventMouseButton and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		if event.button_index == BUTTON_WHEEL_UP or event.button_index == BUTTON_WHEEL_DOWN:
+			if event.button_index == BUTTON_WHEEL_UP:
+				mouse_scroll_value += MOUSE_SENSITIVITY_SCROLL_WHEEL
+			elif event.button_index == BUTTON_WHEEL_DOWN:
+				mouse_scroll_value -= MOUSE_SENSITIVITY_SCROLL_WHEEL
+	
+			mouse_scroll_value = clamp(mouse_scroll_value, 0, WEAPON_NUMBER_TO_NAME.size() - 1)
+	
+			if changing_weapon == false:
+				if reloading_weapon == false:
+					var round_mouse_scroll_value = int(round(mouse_scroll_value))
+					if WEAPON_NUMBER_TO_NAME[round_mouse_scroll_value] != current_weapon_name:
+						changing_weapon_name = WEAPON_NUMBER_TO_NAME[round_mouse_scroll_value]
+						changing_weapon = true
+						mouse_scroll_value = round_mouse_scroll_value
+
+var vel:Vector3 = Vector3()
+var dir:Vector3 = Vector3()
+
+var MOUSE_SENSITIVITY = 0.05
+var JOYPAD_SENSITIVITY = 2
+const JOYPAD_DEADZONE = 0.15
 func process_input(delta):
-
 	# ----------------------------------
 	# Walking
 	dir = Vector3()
@@ -89,13 +106,32 @@ func process_input(delta):
 		input_movement_vector.x -= 1
 	if Input.is_action_pressed("movement_right"):
 		input_movement_vector.x = 1
-
+	
+	# Add joypad input if one is present
+	if Input.get_connected_joypads().size() > 0:	
+		var joypad_vec = Vector2(0, 0)
+	
+		if OS.get_name() == "Windows":
+			joypad_vec = Vector2(Input.get_joy_axis(0, 0), -Input.get_joy_axis(0, 1))
+		elif OS.get_name() == "X11":
+			joypad_vec = Vector2(Input.get_joy_axis(0, 1), Input.get_joy_axis(0, 2))
+		elif OS.get_name() == "OSX":
+			joypad_vec = Vector2(Input.get_joy_axis(0, 1), Input.get_joy_axis(0, 2))
+	
+		if joypad_vec.length() < JOYPAD_DEADZONE:
+			joypad_vec = Vector2(0, 0)
+		else:
+			joypad_vec = joypad_vec.normalized() * ((joypad_vec.length() - JOYPAD_DEADZONE) / (1 - JOYPAD_DEADZONE))
+	
+		input_movement_vector += joypad_vec
+	
+	
 	input_movement_vector = input_movement_vector.normalized()
-
+	
 	dir += -cam_xform.basis.z.normalized() * input_movement_vector.y
 	dir += cam_xform.basis.x.normalized() * input_movement_vector.x
 	# ----------------------------------
-
+	
 	# ----------------------------------
 	# Jumping
 	if is_on_floor():
@@ -131,7 +167,22 @@ func process_input(delta):
 		else:
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	# ----------------------------------
-	
+	# ----------------------------------
+	# Reloading
+	if reloading_weapon == false and changing_weapon == false:
+			if Input.is_action_just_pressed("reload"):
+				var current_weapon = weapons[current_weapon_name]
+				if current_weapon != null:
+					if current_weapon.CAN_RELOAD == true:
+						var current_anim_state = animation_manager.current_state
+						var is_reloading = false
+						for weapon in weapons:
+							var weapon_node = weapons[weapon]
+							if weapon_node != null:
+								if current_anim_state == weapon_node.RELOADING_ANIM_NAME:
+									is_reloading = true
+						if is_reloading == false:
+							reloading_weapon = true
 	# ----------------------------------
 	# Changing weapons.
 	var weapon_change_number = WEAPON_NAME_TO_NUMBER[current_weapon_name]
@@ -152,7 +203,7 @@ func process_input(delta):
 	
 	weapon_change_number = clamp(weapon_change_number, 0, WEAPON_NUMBER_TO_NAME.size()-1)
 	
-	if changing_weapon == false:
+	if changing_weapon == false and reloading_weapon == false:
 		if WEAPON_NUMBER_TO_NAME[weapon_change_number] != current_weapon_name:
 			changing_weapon_name = WEAPON_NUMBER_TO_NAME[weapon_change_number]
 			changing_weapon = true
@@ -168,6 +219,129 @@ func process_input(delta):
 					if animation_manager.current_state == current_weapon.IDLE_ANIM_NAME:
 						animation_manager.set_animation(current_weapon.FIRE_ANIM_NAME)
 	# ----------------------------------
+	# ----------------------------------
+	# Changing and throwing grenades
+	
+	if Input.is_action_just_pressed("change_grenade"):
+		if current_grenade == "Grenade":
+			current_grenade = "Sticky Grenade"
+		elif current_grenade == "Sticky Grenade":
+			current_grenade = "Grenade"
+	
+	if Input.is_action_just_pressed("fire_grenade"):
+		if grenade_amounts[current_grenade] > 0:
+			grenade_amounts[current_grenade] -= 1
+	
+			var grenade_clone
+			if current_grenade == "Grenade":
+				grenade_clone = grenade_scene.instance()
+			elif current_grenade == "Sticky Grenade":
+				grenade_clone = sticky_grenade_scene.instance()
+				# Sticky grenades will stick to the player if we do not pass ourselves
+				grenade_clone.player_body = self
+	
+			get_tree().root.add_child(grenade_clone)
+			grenade_clone.global_transform = $Rotation_Helper/Grenade_Toss_Pos.global_transform
+			grenade_clone.apply_impulse(Vector3(0, 0, 0), grenade_clone.global_transform.basis.z * GRENADE_THROW_FORCE)
+	# ----------------------------------
+	# ----------------------------------
+	# Grabbing and throwing objects
+	
+	if Input.is_action_just_pressed("fire_grenade") and current_weapon_name == "UNARMED":
+		if grabbed_object == null:
+			var state = get_world().direct_space_state
+	
+			var center_position = get_viewport().size / 2
+			var ray_from = camera.project_ray_origin(center_position)
+			var ray_to = ray_from + camera.project_ray_normal(center_position) * OBJECT_GRAB_RAY_DISTANCE
+	
+			var ray_result = state.intersect_ray(ray_from, ray_to, [self, $Rotation_Helper/Gun_Fire_Points/Knife_Point/Area])
+			if !ray_result.empty():
+				if ray_result["collider"] is RigidBody:
+					grabbed_object = ray_result["collider"]
+					grabbed_object.mode = RigidBody.MODE_STATIC
+	
+					grabbed_object.collision_layer = 0
+					grabbed_object.collision_mask = 0
+	
+		else:
+			grabbed_object.mode = RigidBody.MODE_RIGID
+	
+			grabbed_object.apply_impulse(Vector3(0, 0, 0), -camera.global_transform.basis.z.normalized() * OBJECT_THROW_FORCE)
+	
+			grabbed_object.collision_layer = 1
+			grabbed_object.collision_mask = 1
+	
+			grabbed_object = null
+	
+	if grabbed_object != null:
+		grabbed_object.global_transform.origin = camera.global_transform.origin + (-camera.global_transform.basis.z.normalized() * OBJECT_GRAB_DISTANCE)
+	# ----------------------------------
+
+
+enum {
+	xbox = 0
+	playstation =  1
+}
+#xbox
+func process_view_input(delta, controller_type=playstation):
+
+	if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
+		return
+
+	# NOTE: Until some bugs relating to captured mice are fixed, we cannot put the mouse view
+	# rotation code here. Once the bug(s) are fixed, code for mouse view rotation code will go here!
+
+	# ----------------------------------
+	# Joypad rotation
+
+	var joypad_vec = Vector2()
+	if Input.get_connected_joypads().size() > 0:
+		match OS.get_name():
+			"Windows":
+				joypad_vec = Vector2(Input.get_joy_axis(0, 2), Input.get_joy_axis(0, 3))
+			"X11":
+				joypad_vec = Vector2(Input.get_joy_axis(0, 3), Input.get_joy_axis(0, 4 if controller_type==xbox else 3))
+			"OSX":
+				joypad_vec = Vector2(Input.get_joy_axis(0, 3), Input.get_joy_axis(0, 4))
+		
+		if joypad_vec.length() < JOYPAD_DEADZONE:
+			joypad_vec = Vector2(0, 0)
+		else:
+			joypad_vec = joypad_vec.normalized() * ((joypad_vec.length() - JOYPAD_DEADZONE) / (1 - JOYPAD_DEADZONE))
+
+		rotation_helper.rotate_x(deg2rad(joypad_vec.y * JOYPAD_SENSITIVITY))
+
+		rotate_y(deg2rad(joypad_vec.x * JOYPAD_SENSITIVITY * -1))
+
+		var camera_rot = rotation_helper.rotation_degrees
+		camera_rot.x = clamp(camera_rot.x, -70, 70)
+		rotation_helper.rotation_degrees = camera_rot
+	# ----------------------------------
+
+
+
+
+
+
+const GRAVITY = -24.8
+
+
+const MAX_SPEED = 20
+
+const MAX_SPRINT_SPEED = 30
+const SPRINT_ACCEL = 18
+var is_sprinting = false
+
+const JUMP_SPEED = 18
+#allow multi jumping
+const MAX_JUMPS = 3
+var JUMP_COUNT = 0
+
+const ACCEL= 4.5
+
+const DEACCEL= 16
+const MAX_SLOPE_ANGLE = 40
 
 func process_movement(delta):
 	dir.y = 0
@@ -231,18 +405,62 @@ func process_changing_weapons(delta):
 				current_weapon_name = changing_weapon_name
 				changing_weapon_name = ""
 
-
-func _input(event):
-	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		rotation_helper.rotate_x(deg2rad(event.relative.y * MOUSE_SENSITIVITY))
-		self.rotate_y(deg2rad(event.relative.x * MOUSE_SENSITIVITY * -1))
-
-		var camera_rot = rotation_helper.rotation_degrees
-		camera_rot.x = clamp(camera_rot.x, -70, 70)
-		rotation_helper.rotation_degrees = camera_rot
-
 func fire_bullet():
 	if changing_weapon == true:
 		return
 
 	weapons[current_weapon_name].fire_weapon()
+
+func process_reloading(delta):
+	if reloading_weapon == true:
+		var current_weapon = weapons[current_weapon_name]
+		if current_weapon != null:
+			current_weapon.reload_weapon()
+		reloading_weapon = false
+
+func process_UI(delta):
+	if current_weapon_name == "UNARMED" or current_weapon_name == "KNIFE":
+		UI_status_label.text = "HEALTH: " + str(health) + \
+				"\n" + current_grenade + ": " + str(grenade_amounts[current_grenade])
+	else:
+		var current_weapon = weapons[current_weapon_name]
+		UI_status_label.text = "HEALTH: " + str(health) + \
+				"\nAMMO: " + str(current_weapon.ammo_in_weapon) + "/" + str(current_weapon.spare_ammo) + \
+				"\nWEAPON: " + str(current_weapon_name) + \
+				"\n" + current_grenade + ": " + str(grenade_amounts[current_grenade])
+
+
+var simple_audio_player = preload("res://Simple_Audio_Player.tscn")
+func create_sound(sound_name, position=null):
+	var audio_clone = simple_audio_player.instance()
+	var scene_root = get_tree().root.get_children()[0]
+	scene_root.add_child(audio_clone)
+	audio_clone.play_sound(sound_name, position)
+
+
+func add_health(additional_health):
+	health += additional_health
+	health = clamp(health, 0, MAX_HEALTH)
+	
+func add_ammo(additional_ammo):
+	if (current_weapon_name != "UNARMED"):
+		if (weapons[current_weapon_name].CAN_REFILL == true):
+			weapons[current_weapon_name].spare_ammo += weapons[current_weapon_name].AMMO_IN_MAG * additional_ammo
+			
+			
+var grenade_amounts = {"Grenade":2, "Sticky Grenade":2}
+var current_grenade = "Grenade"
+var grenade_scene = preload("res://Grenade.tscn")
+var sticky_grenade_scene = preload("res://Sticky_Grenade.tscn")
+const GRENADE_THROW_FORCE = 50
+
+func add_grenade(additional_grenade):
+	grenade_amounts[current_grenade] += additional_grenade
+	grenade_amounts[current_grenade] = clamp(grenade_amounts[current_grenade], 0, 4)
+	
+
+		
+var grabbed_object = null
+const OBJECT_THROW_FORCE = 120
+const OBJECT_GRAB_DISTANCE = 7
+const OBJECT_GRAB_RAY_DISTANCE = 10

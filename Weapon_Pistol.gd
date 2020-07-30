@@ -8,6 +8,11 @@ const AMMO_IN_MAG = 1000
 const IDLE_ANIM_NAME = "Pistol_idle"
 const FIRE_ANIM_NAME = "Pistol_fire"
 
+const CAN_RELOAD = true
+const CAN_REFILL = true
+
+const RELOADING_ANIM_NAME = "Pistol_reload"
+
 var is_weapon_enabled = false
 
 var bullet_scene = preload("Bullet_Scene.tscn")
@@ -18,13 +23,14 @@ func _ready():
 	pass
 
 func fire_weapon():
+	player_node.create_sound("Pistol_shot", self.global_transform.origin)
 	var clone = bullet_scene.instance()
 	var scene_root = get_tree().root.get_children()[0]
 	scene_root.add_child(clone)
 
 	clone.global_transform = self.global_transform
 	clone.scale = Vector3(4, 4, 4)
-	clone.BULLET_DAMAGE = DAMAGE
+	clone.bullet_damage = DAMAGE
 	ammo_in_weapon -= 1
 
 func equip_weapon():
@@ -47,3 +53,28 @@ func unequip_weapon():
 		return true
 	else:
 		return false
+		
+func reload_weapon():
+	var can_reload = false
+
+	if player_node.animation_manager.current_state == IDLE_ANIM_NAME:
+		can_reload = true
+
+	if spare_ammo <= 0 or ammo_in_weapon == AMMO_IN_MAG:
+		can_reload = false
+
+	if can_reload == true:
+		var ammo_needed = AMMO_IN_MAG - ammo_in_weapon
+
+		if spare_ammo >= ammo_needed:
+			spare_ammo -= ammo_needed
+			ammo_in_weapon = AMMO_IN_MAG
+		else:
+			ammo_in_weapon += spare_ammo
+			spare_ammo = 0
+
+		player_node.animation_manager.set_animation(RELOADING_ANIM_NAME)
+		player_node.create_sound("Gun_cock", player_node.camera.global_transform.origin)
+		return true
+
+	return false

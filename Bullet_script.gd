@@ -18,6 +18,10 @@ var init_scale: Vector3
 func _ready():
 	$Area.connect("body_entered", self, "collided")
 	init_scale = scale * 4
+	$RayCast.add_exception(self)
+	$RayCast.add_exception($Bullet/Area)
+	$RayCast.add_exception($Bullet/MeshInstance)
+	$RayCast.add_exception($Bullet/CollisionShape)
 
 func _physics_process(delta):
 	timer += delta
@@ -44,21 +48,29 @@ func collided(body):
 	if hit_something == false:
 		if body.has_method("bullet_hit"):
 			body.bullet_hit(bullet_damage, global_transform)
-	
+	hit_something = true
+	queue_free()
 	#var rotation = Quat(body.global_transform.basis)
 	#print(rotation)
 	$RayCast.force_raycast_update()
 	var n = $RayCast.get_collision_normal().normalized()
-	richochet(n)
-	print(n)
-	#hit_something = true
-	#queue_free()
+	global_transform.basis.x = global_transform.basis.x.bounce(n)
+	global_transform.basis.y = global_transform.basis.y.bounce(n)
+	#richochet(n)
+	
+	#self.rotation = self.get_rotation().bounce(Vector3.UP)
+	
+	
+	
 
 func richochet(normal):
-	var rot = self.get_rotation()
+	normal = normal.normalized()
+	var rot = self.get_rotation().normalized()	
+	print(normal)
+	print(rot)
 	#easy as pi
-	rot = -2*rot.dot(normal)*normal - rot
-	rot.normalized()
+	rot =  -2*(normal.dot(rot))*normal-rot
+	print(rot)
 	self.rotation = rot
 	#print(rot)
 	

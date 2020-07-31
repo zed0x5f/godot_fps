@@ -46,8 +46,20 @@ func bullet_hit(damage, bullet_transform):
 				var direction = (rigid.transform.origin - center_in_rigid_space).normalized()
 				# Apply the impulse with some additional force (I find 12 works nicely).
 				rigid.apply_impulse(center_in_rigid_space, direction * 12 * damage)
+				
+				#var grenade_clone	
+				#grenade_clone = grenade_scene.instance()
+			
+				#get_tree().root.add_child(grenade_clone)
+				#grenade_clone.global_transform = $Rotation_Helper/Grenade_Toss_Pos.global_transform
+				#grenade_clone.apply_impulse(Vector3(0, 0, 0), grenade_clone.global_transform.basis.z * 5)
 
 		target_respawn_timer = TARGET_RESPAWN_TIME
 
 		target_collision_shape.disabled = true
 		visible = false
+
+var grenade_scene = preload("res://Grenade.tscn")
+func throw_grenade():
+	pass
+	

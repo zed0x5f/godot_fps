@@ -228,56 +228,56 @@ func process_input(delta):
 		elif current_grenade == "Sticky Grenade":
 			current_grenade = "Grenade"
 	
-	if Input.is_action_just_pressed("fire_grenade"):
-		if grenade_amounts[current_grenade] > 0:
-			grenade_amounts[current_grenade] -= 1
-	
-			var grenade_clone
-			if current_grenade == "Grenade":
-				grenade_clone = grenade_scene.instance()
-			elif current_grenade == "Sticky Grenade":
-				grenade_clone = sticky_grenade_scene.instance()
-				# Sticky grenades will stick to the player if we do not pass ourselves
-				grenade_clone.player_body = self
-	
-			get_tree().root.add_child(grenade_clone)
-			grenade_clone.global_transform = $Rotation_Helper/Grenade_Toss_Pos.global_transform
-			grenade_clone.apply_impulse(Vector3(0, 0, 0), grenade_clone.global_transform.basis.z * GRENADE_THROW_FORCE)
-	# ----------------------------------
-	# ----------------------------------
-	# Grabbing and throwing objects
-	
-	if Input.is_action_just_pressed("fire_grenade") and current_weapon_name == "UNARMED":
-		if grabbed_object == null:
-			var state = get_world().direct_space_state
-	
-			var center_position = get_viewport().size / 2
-			var ray_from = camera.project_ray_origin(center_position)
-			var ray_to = ray_from + camera.project_ray_normal(center_position) * OBJECT_GRAB_RAY_DISTANCE
-	
-			var ray_result = state.intersect_ray(ray_from, ray_to, [self, $Rotation_Helper/Gun_Fire_Points/Knife_Point/Area])
-			if !ray_result.empty():
-				if ray_result["collider"] is RigidBody:
-					grabbed_object = ray_result["collider"]
-					grabbed_object.mode = RigidBody.MODE_STATIC
-	
-					grabbed_object.collision_layer = 0
-					grabbed_object.collision_mask = 0
-	
+	if Input.is_action_just_pressed("fire_grenade"):		
+		if current_weapon_name == "UNARMED":
+			if grabbed_object == null:
+				var state = get_world().direct_space_state
+		
+				var center_position = get_viewport().size / 2
+				var ray_from = camera.project_ray_origin(center_position)
+				var ray_to = ray_from + camera.project_ray_normal(center_position) * OBJECT_GRAB_RAY_DISTANCE
+		
+				var ray_result = state.intersect_ray(ray_from, ray_to, [self, $Rotation_Helper/Gun_Fire_Points/Knife_Point/Area])
+				if !ray_result.empty():
+					if ray_result["collider"] is RigidBody:
+						grabbed_object = ray_result["collider"]
+						grabbed_object.mode = RigidBody.MODE_STATIC
+		
+						grabbed_object.collision_layer = 0
+						grabbed_object.collision_mask = 0
+		
+			else:
+				grabbed_object.mode = RigidBody.MODE_RIGID
+		
+				grabbed_object.apply_impulse(Vector3(0, 0, 0), -camera.global_transform.basis.z.normalized() * OBJECT_THROW_FORCE)
+		
+				grabbed_object.collision_layer = 1
+				grabbed_object.collision_mask = 1
+		
+				grabbed_object = null
+		
+		if grabbed_object != null:
+			grabbed_object.global_transform.origin = camera.global_transform.origin + (-camera.global_transform.basis.z.normalized() * OBJECT_GRAB_DISTANCE)
 		else:
-			grabbed_object.mode = RigidBody.MODE_RIGID
-	
-			grabbed_object.apply_impulse(Vector3(0, 0, 0), -camera.global_transform.basis.z.normalized() * OBJECT_THROW_FORCE)
-	
-			grabbed_object.collision_layer = 1
-			grabbed_object.collision_mask = 1
-	
-			grabbed_object = null
-	
-	if grabbed_object != null:
-		grabbed_object.global_transform.origin = camera.global_transform.origin + (-camera.global_transform.basis.z.normalized() * OBJECT_GRAB_DISTANCE)
-	# ----------------------------------
+			throw_grenade()
+		# ----------------------------------
 
+func throw_grenade():
+	if grenade_amounts[current_grenade] > 0:
+		grenade_amounts[current_grenade] -= 1
+		var grenade_clone
+		if current_grenade == "Grenade":
+			grenade_clone = grenade_scene.instance()
+		elif current_grenade == "Sticky Grenade":
+			grenade_clone = sticky_grenade_scene.instance()
+			# Sticky grenades will stick to the player if we do not pass ourselves
+			grenade_clone.player_body = self
+
+		get_tree().root.add_child(grenade_clone)
+		grenade_clone.global_transform = $Rotation_Helper/Grenade_Toss_Pos.global_transform
+		grenade_clone.apply_impulse(Vector3(0, 0, 0), grenade_clone.global_transform.basis.z * GRENADE_THROW_FORCE)
+		return true
+	return false
 
 enum {
 	xbox = 0
@@ -370,7 +370,7 @@ func process_movement(delta):
 	hvel = hvel.linear_interpolate(target, accel*delta)
 	vel.x = hvel.x
 	vel.z = hvel.z
-	vel = move_and_slide(vel,Vector3(0,1,0), 0.05, 4, deg2rad(MAX_SLOPE_ANGLE))
+	vel = move_and_slide(vel,Vector3.UP, 0.05, 4, deg2rad(MAX_SLOPE_ANGLE))
 
 
 func process_changing_weapons(delta):
